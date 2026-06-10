@@ -1,10 +1,10 @@
 # dbt-airflow-data-platform
 
-End-to-end **dbt + Airflow + Postgres** data platform, demonstrating the second JD for the **Data Engineer** role.
+End-to-end **dbt + Airflow + Postgres** data platform.
 
 ## Why this project?
 
-| JD requirement | Where |
+| Topic | Where |
 |---|---|
 | ETL Data Pipelines | dbt models in `dbt_project/models/` |
 | Python for Data Engineering | Airflow DAG, dbt tests |
@@ -95,5 +95,5 @@ The Python tests inspect the SQL/YAML files directly, validating:
 ## See also
 
 - `flink-data-mesh-pipeline` — streaming counterpart with Kafka + Flink
-- `akka-scala-base` — Scala/Akka (Senior Software Engineer role)
-- `scala-akka-aws-microservice` — AWS deploy (Senior Software Engineer role)
+- `akka-scala-base` — Scala/Akka
+- `scala-akka-aws-microservice` — AWS deploy
