@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "Order fact table joined with customer attributes"
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: amount
+        tests:
+          - not_null
+
+  - name: daily_revenue_by_tier
+    description: "Daily revenue aggregated by customer tier"
+    columns:
+      - name: order_day
+        tests:
+          - not_null
+      - name: customer_tier
+        tests:
+          - not_null
+      - name: revenue
+        tests:
+          - not_null
+
+  - name: top_customers
+    description: "Customer ranking by lifetime revenue"
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: lifetime_revenue
+        tests:
+          - not_null

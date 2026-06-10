@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Cleaned order events from raw.orders"
+    columns:
+      - name: order_id
+        description: "Primary key"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: amount
+        tests:
+          - not_null
+      - name: currency
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['USD', 'EUR', 'BRL', 'GBP']
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['created', 'paid', 'shipped', 'delivered', 'cancelled']
+      - name: created_at
+        tests:
+          - not_null
+
+  - name: stg_customers
+    description: "Cleaned customer records"
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: email
+        tests:
+          - not_null
+      - name: tier
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM']
