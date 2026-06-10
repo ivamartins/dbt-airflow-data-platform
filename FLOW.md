@@ -1,89 +1,89 @@
-# Fluxo de interação entre classes — dbt-airflow-data-platform
+# Class interaction flow — dbt-airflow-data-platform
 
-Visualização rápida de como o dado entra, é transformado e validado, da DAG do Airflow até os modelos finais do dbt.
+Quick visualization of how data enters, is transformed and validated, from the Airflow DAG down to the final dbt models.
 
-## 1. Trigger da DAG (diariamente 02:00 UTC)
+## 1. DAG trigger (daily at 02:00 UTC)
 
 ```
 Airflow Scheduler
   └─> DAG "data_platform_daily"          [dags/data_platform_daily.py]
         └─> dbt_deps  ──> dbt_seed  ──> dbt_run  ──> dbt_test  ──> publish_run_results
-        (encadeamento: dbt_deps >> dbt_seed >> dbt_run >> dbt_test >> publish)
+        (chaining: dbt_deps >> dbt_seed >> dbt_run >> dbt_test >> publish)
 ```
 
-## 2. `dbt_seed` — carregar dados de referência
+## 2. `dbt_seed` — load reference data
 
 ```
 seeds/raw_orders.csv
 seeds/raw_customers.csv
-  └─> dbt seed ──> tabelas `raw.orders`, `raw.customers` (no schema public do Postgres)
+  └─> dbt seed ──> tables `raw.orders`, `raw.customers` (in Postgres public schema)
 ```
 
-## 3. `dbt_run` — transformações dbt (DAG interna do dbt)
+## 3. `dbt_run` — dbt transformations (internal dbt DAG)
 
 ```
-raw.orders  + raw.customers  (declarados em _sources.yml)
+raw.orders  + raw.customers  (declared in _sources.yml)
   │
-  ├─> stg_orders.sql          (view, schema=staging)   ──> SELECT tipado + casts
-  ├─> stg_customers.sql       (view, schema=staging)   ──> SELECT tipado + casts
+  ├─> stg_orders.sql          (view, schema=staging)   ──> typed SELECT + casts
+  ├─> stg_customers.sql       (view, schema=staging)   ──> typed SELECT + casts
   │
   └─> (stg_orders + stg_customers) ──> ref() ──>
-        ├─> fct_orders.sql              (table, schema=marts)  ──> fact table wide (order × customer)
-        ├─> daily_revenue_by_tier.sql   (table, schema=marts)  ──> agregação diária
+        ├─> fct_orders.sql              (table, schema=marts)  ──> wide fact table (order × customer)
+        ├─> daily_revenue_by_tier.sql   (table, schema=marts)  ──> daily aggregation
         └─> top_customers.sql           (table, schema=marts)  ──> ranking
 ```
 
-**Caminho resumido (dbt DAG):**
+**Summary path (dbt DAG):**
 `raw → stg_orders + stg_customers → fct_orders → (daily_revenue_by_tier + top_customers)`
 
-## 4. `dbt_test` — validação
+## 4. `dbt_test` — validation
 
 ```
-Cada model tem _models.yml declarando tests:
+Each model has _models.yml declaring tests:
   ├─> not_null      (PKs, FKs, status)
   ├─> unique        (order_id, customer_id)
   ├─> accepted_values (currency, status, tier)
   └─> relationships (orders → customers)
 
-Singular tests (SQL custom em tests/):
+Singular tests (custom SQL in tests/):
   ├─> assert_fct_orders_amount_positive.sql
   └─> assert_revenue_non_negative.sql
 ```
 
-Se qualquer teste falhar, a task `dbt_test` falha → DAG falha → alerta.
+If any test fails, the `dbt_test` task fails → DAG fails → alert.
 
 ## 5. `publish_run_results` (PythonOperator)
 
 ```
-publica target/run_results.json
+publishes target/run_results.json
   └─> log: "dbt run completed: N models executed"
-        (em prod: enviaria para DataHub/Marquez/Slack)
+        (in prod: would send to DataHub/Marquez/Slack)
 ```
 
-## 6. Testes Python (sem precisar de DB)
+## 6. Python tests (no DB needed)
 
 ```
 pytest tests/test_dbt_structure.py
-  └─> inspeciona arquivos SQL/YAML diretamente:
-        ├─> estrutura do projeto
-        ├─> declaração de tests em todos os models
-        ├─> conformidade dos seeds (amount > 0, currency ISO-3, status/tier)
-        └─> wiring correto da DAG
+  └─> inspects SQL/YAML files directly:
+        ├─> project structure
+        ├─> test declaration in all models
+        ├─> seed contract compliance (amount > 0, ISO-3 currency, valid status/tier)
+        └─> correct DAG wiring
 ```
 
-## Mapa de pastas (dbt)
+## Folder map (dbt)
 
 ```
 dbt_project/
 ├── dbt_project.yml        ← config (paths, materializations, schemas)
-├── profiles.yml           ← conexões dev/prod
+├── profiles.yml           ← dev/prod connections
 ├── models/
-│   ├── staging/           ← views (1:1 com raw)
+│   ├── staging/           ← views (1:1 with raw)
 │   │   ├── _sources.yml
 │   │   ├── _stg_models.yml
 │   │   ├── stg_orders.sql
 │   │   └── stg_customers.sql
-│   └── marts/             ← tables (agregados, facts)
+│   └── marts/             ← tables (aggregates, facts)
 │       ├── _marts_models.yml
 │       ├── fct_orders.sql
 │       ├── daily_revenue_by_tier.sql
@@ -98,23 +98,23 @@ dbt_project/
     └── assert_revenue_non_negative.sql
 ```
 
-## Mapa geral do repo
+## Repo map
 
 ```
 dbt-airflow-data-platform/
 ├── dags/
-│   └── data_platform_daily.py        ← DAG Airflow (5 tasks)
-├── dbt_project/                       ← projeto dbt (ver acima)
+│   └── data_platform_daily.py        ← Airflow DAG (5 tasks)
+├── dbt_project/                       ← dbt project (see above)
 ├── init/
-│   └── 01_schemas.sql                 ← DDL inicial Postgres
+│   └── 01_schemas.sql                 ← Postgres initial DDL
 ├── tests/
-│   └── test_dbt_structure.py          ← pytest (sem DB)
+│   └── test_dbt_structure.py          ← pytest (no DB)
 ├── docker-compose.yml                 ← Postgres + Airflow + dbt
 └── README.md
 ```
 
-## Erros
+## Errors
 
-- **dbt_test falhando** → DAG falha → alerta Airflow.
-- **DAG falhando** → o Airflow retentará 2x com delay de 5 min; após 2 falhas, callback de falha (a ser adicionado em prod).
-- **Singular test falhando** → `dbt test` falha com a query do test que retornou linhas (data quality breach).
+- **dbt_test failing** → DAG fails → Airflow alert.
+- **DAG failing** → Airflow will retry 2x with a 5-min delay; after 2 failures, a failure callback (to be added in prod).
+- **Singular test failing** → `dbt test` fails with the query of the test that returned rows (data quality breach).
