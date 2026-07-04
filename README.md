@@ -1,5 +1,9 @@
 # dbt-airflow-data-platform
 
+[![CI](https://github.com/ivamartins/dbt-airflow-data-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ivamartins/dbt-airflow-data-platform/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/)
+
 > Part of the **Code Solutions Data Platform Foundation** product line. End-to-end data pipeline: Airflow orchestrates dbt (seed → run → test → publish) against Postgres, with Pydantic contracts and Data Quality built in.
 
 Production-ready data platform: **Airflow** orchestrates **dbt** against **PostgreSQL**, with staging/marts models, Pydantic contracts, generic + singular tests, and **Data Mesh by schema**.
