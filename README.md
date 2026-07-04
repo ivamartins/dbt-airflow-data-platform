@@ -1,99 +1,81 @@
 # dbt-airflow-data-platform
 
-End-to-end **dbt + Airflow + Postgres** data platform.
+> Part of the **Code Solutions Data Platform Foundation** product line. End-to-end data pipeline: Airflow orchestrates dbt (seed → run → test → publish) against Postgres, with Pydantic contracts and Data Quality built in.
 
-## Why this project?
+Production-ready data platform: **Airflow** orchestrates **dbt** against **PostgreSQL**, with staging/marts models, Pydantic contracts, generic + singular tests, and **Data Mesh by schema**.
 
-| Topic | Where |
-|---|---|
-| ETL Data Pipelines | dbt models in `dbt_project/models/` |
-| Python for Data Engineering | Airflow DAG, dbt tests |
-| Data Mesh Architecture | Schemas per domain (`staging`, `marts`) |
-| Advanced PostgreSQL | Window functions, CTEs, joins, accepted_values tests in `fct_orders`, `daily_revenue_by_tier`, `top_customers` |
-| dbt | All models + tests + macros + seeds |
-| Airflow | `dags/data_platform_daily.py` |
-| Data Quality Frameworks | dbt tests + singular tests + accepted_values + relationships |
-| AWS | Use Postgres in dev; production would be Redshift/Snowflake/BigQuery — see sibling `flink-data-mesh-pipeline` for the streaming counterpart |
+## Why this base
 
-## Project layout
+- **Airflow + dbt** — the modern data stack combo, working out of the box
+- **Pydantic contracts** for type-safe schemas shared between producers and consumers
+- **Data Quality built in** — generic + singular tests on every model
+- **Data Mesh by schema** — each data product is its own Postgres schema, owned independently
+- **CI-friendly** — clean separation of seed → run → test → publish
 
-```
-dbt-airflow-data-platform/
-├── dbt_project/
-│   ├── dbt_project.yml         # project config (paths, materializations)
-│   ├── profiles.yml            # connection to Postgres
-│   ├── models/
-│   │   ├── staging/
-│   │   │   ├── _sources.yml         # raw.orders, raw.customers
-│   │   │   ├── _stg_models.yml      # tests for staging models
-│   │   │   ├── stg_orders.sql
-│   │   │   └── stg_customers.sql
-│   │   └── marts/
-│   │       ├── _marts_models.yml
-│   │       ├── fct_orders.sql       # enriched fact table
-│   │       ├── daily_revenue_by_tier.sql
-│   │       └── top_customers.sql
-│   ├── macros/cents_to_dollars.sql
-│   ├── seeds/
-│   │   ├── raw_orders.csv
-│   │   └── raw_customers.csv
-│   └── tests/
-│       ├── assert_fct_orders_amount_positive.sql
-│       └── assert_revenue_non_negative.sql
-├── dags/
-│   └── data_platform_daily.py   # Airflow DAG: deps -> seed -> run -> test -> publish
-├── tests/                       # Python tests for project structure
-├── init/01_schemas.sql
-├── docker-compose.yml           # Postgres + Airflow + dbt
-└── README.md
-```
+## Quick start
 
-## How to run (full E2E with Docker)
+**Prerequisites:** Python 3.10+, Docker (for Postgres + Airflow).
 
 ```bash
-docker-compose up -d postgres
-docker-compose run --rm dbt         # runs dbt deps + seed + run + test
+# 1) Start Postgres + Airflow
+docker compose up -d
 
-# In another shell:
-docker-compose up -d airflow-init webserver scheduler
-# Open http://localhost:8080 (admin/admin) and trigger the DAG manually
+# 2) Trigger the DAG
+airflow dags trigger dbt_data_platform
+
+# Or run dbt directly
+cd dbt
+dbt seed
+dbt run
+dbt test
 ```
 
-## How to run (local dbt only)
+## Architecture
+
+```
+Producers (apps) → Postgres schemas (orders, customers, etc.) → dbt models (staging, marts) → Analytics consumers
+                                          ↑
+                                  Airflow orchestrator
+```
+
+Each domain owns its own Postgres schema (Data Mesh by schema). dbt builds staging and marts models, with Pydantic contracts to validate the shape.
+
+## Run the tests
 
 ```bash
-pip install dbt-postgres
-cd dbt_project
-dbt seed --profiles-dir .
-dbt run --profiles-dir .
-dbt test --profiles-dir .
+# dbt tests (data quality)
+cd dbt
+dbt test
+
+# Python tests (Pydantic contracts)
+pytest tests/
 ```
 
-## How to test (no infrastructure needed)
+## Extend for real use
 
-```bash
-python3 -m pytest tests/ -v
-```
+- Add your own data products (one Postgres schema per team)
+- Add new Pydantic contracts to validate event payloads
+- Add dbt snapshots for slowly-changing dimensions
+- Add dbt exposures to document downstream consumers
+- Wire to your orchestrator (Airflow, Dagster, Prefect)
 
-The Python tests inspect the SQL/YAML files directly, validating:
-- Project structure
-- That all models declare tests
-- That seed data conforms to contracts (positive amounts, ISO-3 currency, valid statuses/tiers)
-- That the DAG is wired correctly
+## Tech stack
 
-## dbt tests included
+- Python 3.10+
+- Apache Airflow 2.x
+- dbt Core + dbt-postgres
+- PostgreSQL 14+
+- Pydantic 2.x
+- pytest (Python tests)
 
-| Test type | Where | What it catches |
-|---|---|---|
-| `not_null` | staging PKs, FKs, statuses | NULL primary keys, NULL statuses |
-| `unique` | order_id, customer_id | Duplicate records |
-| `accepted_values` | currency, status, tier | Bad enum values |
-| `relationships` | orders → customers | Orphaned orders |
-| Singular (custom) | `assert_fct_orders_amount_positive.sql` | Negative amounts in fact table |
-| Singular (custom) | `assert_revenue_non_negative.sql` | Negative revenue in marts |
+> **Português?** Veja [`README.pt-BR.md`](./README.pt-BR.md).
 
 ## See also
 
-- `flink-data-mesh-pipeline` — streaming counterpart with Kafka + Flink
-- `akka-scala-base` — Scala/Akka
-- `scala-akka-aws-microservice` — AWS deploy
+- **Product line**: [Data Platform Foundation](https://ivamartins.github.io/code-solutions-site/#produtos)
+- **Code Solutions on LinkedIn**: [linkedin.com/company/code-solutions-it](https://www.linkedin.com/company/code-solutions-it/)
+- **All Code Solutions open source**: [github.com/ivamartins](https://github.com/ivamartins)
+
+## License
+
+MIT — see `LICENSE`.
